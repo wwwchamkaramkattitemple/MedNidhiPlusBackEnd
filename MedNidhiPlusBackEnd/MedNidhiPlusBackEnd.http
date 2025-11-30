@@ -1,0 +1,6 @@
+@MedNidhiPlusBackEnd_HostAddress = http://localhost:5119
+
+GET {{MedNidhiPlusBackEnd_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
