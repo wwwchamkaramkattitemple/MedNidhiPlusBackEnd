@@ -28,6 +28,9 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<SystemSetting> SystemSettings { get; set; }
 
+    public DbSet<Procedure> Procedures { get; set; }
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
