@@ -4,6 +4,7 @@ using MedNidhiPlusBackEnd.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedNidhiPlusBackEnd.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251206060622_AddMedicineTable")]
+    partial class AddMedicineTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,67 +24,6 @@ namespace MedNidhiPlusBackEnd.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("InvoiceDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("InvoiceNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal>("PaidAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("PatientId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("PaymentDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PaymentMethod")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal>("SubTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TaxAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.ToTable("Invoices");
-                });
 
             modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.Appointment", b =>
                 {
@@ -145,6 +87,68 @@ namespace MedNidhiPlusBackEnd.Migrations
                     b.ToTable("Appointments");
                 });
 
+            modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.Invoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("InvoiceDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("PaidAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PatientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("SubTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("Invoices");
+                });
+
             modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.InvoiceItem", b =>
                 {
                     b.Property<int>("Id")
@@ -158,7 +162,8 @@ namespace MedNidhiPlusBackEnd.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("Discount")
                         .HasColumnType("decimal(18,2)");
@@ -168,6 +173,10 @@ namespace MedNidhiPlusBackEnd.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<string>("ServiceCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("TaxAmount")
                         .HasColumnType("decimal(18,2)");
@@ -556,14 +565,11 @@ namespace MedNidhiPlusBackEnd.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("int");
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Discount")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("GenericName")
                         .HasColumnType("nvarchar(max)");
@@ -574,9 +580,6 @@ namespace MedNidhiPlusBackEnd.Migrations
                     b.Property<string>("MedicineName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ReorderLevel")
-                        .HasColumnType("int");
 
                     b.Property<int>("StockQuantity")
                         .HasColumnType("int");
@@ -592,39 +595,7 @@ namespace MedNidhiPlusBackEnd.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
-
                     b.ToTable("Medicines");
-                });
-
-            modelBuilder.Entity("MedNidhiPlusBackEnd.Models.MedicineCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("MedicineCategories");
                 });
 
             modelBuilder.Entity("MedNidhiPlusBackEnd.Models.Procedure", b =>
@@ -689,17 +660,6 @@ namespace MedNidhiPlusBackEnd.Migrations
                     b.ToTable("SystemSettings");
                 });
 
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.HasOne("MedNidhiPlusBackEnd.API.Models.Patient", "Patient")
-                        .WithMany("Invoices")
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Patient");
-                });
-
             modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.Appointment", b =>
                 {
                     b.HasOne("MedNidhiPlusBackEnd.Models.AppointmentType", "AppointmentType")
@@ -742,13 +702,24 @@ namespace MedNidhiPlusBackEnd.Migrations
                     b.Navigation("Status");
                 });
 
+            modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.Invoice", b =>
+                {
+                    b.HasOne("MedNidhiPlusBackEnd.API.Models.Patient", "Patient")
+                        .WithMany("Invoices")
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.InvoiceItem", b =>
                 {
                     b.HasOne("MedNidhiPlusBackEnd.API.Models.Appointment", "Appointment")
                         .WithMany()
                         .HasForeignKey("AppointmentId");
 
-                    b.HasOne("Invoice", "Invoice")
+                    b.HasOne("MedNidhiPlusBackEnd.API.Models.Invoice", "Invoice")
                         .WithMany("Items")
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -770,16 +741,7 @@ namespace MedNidhiPlusBackEnd.Migrations
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("MedNidhiPlusBackEnd.Models.Medicine", b =>
-                {
-                    b.HasOne("MedNidhiPlusBackEnd.Models.MedicineCategory", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId");
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("Invoice", b =>
+            modelBuilder.Entity("MedNidhiPlusBackEnd.API.Models.Invoice", b =>
                 {
                     b.Navigation("Items");
                 });
