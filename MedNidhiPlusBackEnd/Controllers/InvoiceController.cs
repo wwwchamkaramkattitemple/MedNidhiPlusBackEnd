@@ -94,16 +94,56 @@ public class InvoiceController : ControllerBase
     }
 
 
-    // GET: api/Invoice/patient/5
+    //// GET: api/Invoice/patient/5
+    //[HttpGet("patient/{patientId}")]
+    //public async Task<ActionResult<IEnumerable<Invoice>>> GetPatientInvoices(int patientId)
+    //{
+    //    return await _context.Invoices
+    //        .Where(i => i.PatientId == patientId)
+    //        .Include(i => i.Patient)
+    //        .Include(i => i.Items)
+    //        .ToListAsync();
+    //}
+
     [HttpGet("patient/{patientId}")]
-    public async Task<ActionResult<IEnumerable<Invoice>>> GetPatientInvoices(int patientId)
+    public async Task<ActionResult<IEnumerable<object>>> GetPatientInvoices(int patientId)
     {
-        return await _context.Invoices
+        var invoices = await _context.Invoices
             .Where(i => i.PatientId == patientId)
-            .Include(i => i.Patient)
             .Include(i => i.Items)
+            .Include(i => i.Patient)
+            .OrderByDescending(i => i.InvoiceDate)
+            .Select(i => new
+            {
+                i.Id,
+                i.InvoiceNumber,
+                InvoiceDate = i.InvoiceDate,
+                DueDate = i.DueDate,
+
+                DateString = i.InvoiceDate.ToString("dd/MM/yyyy"),
+
+                PatientId = i.PatientId,
+                PatientName = i.Patient.FirstName + " " + i.Patient.LastName,
+
+                Amount = i.TotalAmount,
+                i.PaidAmount,
+
+                Status =
+                    i.PaidAmount >= i.TotalAmount ? "Paid" :
+                    i.DueDate < DateTime.UtcNow ? "Overdue" :
+                    "Pending",
+
+                // Any appointment billed under this invoice
+                AppointmentIds = i.Items
+                    .Where(it => it.AppointmentId != null)
+                    .Select(it => it.AppointmentId)
+                    .ToList()
+            })
             .ToListAsync();
+
+        return Ok(invoices);
     }
+
 
     // GET: api/Invoice/status/Pending
     [HttpGet("status/{status}")]
@@ -232,64 +272,6 @@ public class InvoiceController : ControllerBase
     }
 
 
-    // PUT: api/Invoice/5
-    //[HttpPut("{id}")]
-    //public async Task<IActionResult> UpdateInvoice(int id, Invoice invoice)
-    //{
-    //    if (id != invoice.Id)
-    //    {
-    //        return BadRequest();
-    //    }
-
-    //    // Recalculate totals
-    //    CalculateInvoiceTotals(invoice);
-
-    //    invoice.UpdatedAt = DateTime.UtcNow;
-    //    _context.Entry(invoice).State = EntityState.Modified;
-
-    //    // Handle invoice items
-    //    var existingItems = await _context.InvoiceItems.Where(i => i.InvoiceId == id).ToListAsync();
-    //    var itemsToRemove = existingItems.Where(existingItem => 
-    //        !invoice.Items.Any(i => i.Id == existingItem.Id)).ToList();
-
-    //    foreach (var item in itemsToRemove)
-    //    {
-    //        _context.InvoiceItems.Remove(item);
-    //    }
-
-    //    foreach (var item in invoice.Items)
-    //    {
-    //        if (item.Id == 0)
-    //        {
-    //            // New item
-    //            item.InvoiceId = id;
-    //            _context.InvoiceItems.Add(item);
-    //        }
-    //        else
-    //        {
-    //            // Existing item
-    //            _context.Entry(item).State = EntityState.Modified;
-    //        }
-    //    }
-
-    //    try
-    //    {
-    //        await _context.SaveChangesAsync();
-    //    }
-    //    catch (DbUpdateConcurrencyException)
-    //    {
-    //        if (!InvoiceExists(id))
-    //        {
-    //            return NotFound();
-    //        }
-    //        else
-    //        {
-    //            throw;
-    //        }
-    //    }
-
-    //    return NoContent();
-    //}
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateInvoice(int id, InvoiceUpdateDto dto)
