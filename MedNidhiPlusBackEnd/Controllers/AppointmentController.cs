@@ -54,6 +54,7 @@ public class AppointmentController : ControllerBase
             .Select(a => new
             {
                 a.Id,
+                a.PatientId,
                 PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
                 DoctorName = a.Doctor.DoctorName,
                 DepartmentName = a.Department != null ? a.Department.DepartmentName : null,
