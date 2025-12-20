@@ -47,6 +47,8 @@ public class Invoice
     [MaxLength(100)]
     public string? PaymentMethod { get; set; }
 
+    public bool IsLocked { get; set; } = false;
+   
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
