@@ -2,10 +2,11 @@ using MedNidhiPlusBackEnd.API.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
 using System.Text;
-using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Text.Json.Serialization;
 
 
@@ -20,6 +21,8 @@ builder.Host.UseWindowsService(options =>
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddFilter("Microsoft.Extensions.Logging.EventLog", LogLevel.None);
+
+
 
 //builder.Services.AddControllers();
 builder.Services.AddControllers()
@@ -118,6 +121,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+QuestPDF.Settings.License = LicenseType.Community;
+
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -129,6 +136,8 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+
 
 //app.UseHttpsRedirection();
 app.UseCors("AllowAngularApp");

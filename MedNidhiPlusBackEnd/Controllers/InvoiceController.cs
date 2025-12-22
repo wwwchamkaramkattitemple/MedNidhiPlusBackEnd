@@ -1,10 +1,12 @@
 ﻿using MedNidhiPlusBackEnd.API.Data;
 using MedNidhiPlusBackEnd.API.Models;
+using MedNidhiPlusBackEnd.API.Models;
+using MedNidhiPlusBackEnd.Models;
+using MedNidhiPlusBackEnd.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MedNidhiPlusBackEnd.API.Models;
-using MedNidhiPlusBackEnd.Models;
+using QuestPDF.Fluent;
 
 namespace MedNidhiPlusBackEnd.API.Controllers;
 
@@ -31,62 +33,74 @@ public class InvoiceController : ControllerBase
     }
 
 
+    //[HttpGet("{id}/detail")]
+    //public async Task<ActionResult<InvoiceDetailDto>> GetInvoiceDetail(int id)
+    //{
+    //    var invoice = await _context.Invoices
+    //        .Include(i => i.Patient)
+    //        .Include(i => i.Items)
+    //        .FirstOrDefaultAsync(i => i.Id == id);
+
+    //    if (invoice == null)
+    //        return NotFound();
+
+    //    var dto = new InvoiceDetailDto
+    //    {
+    //        Id = invoice.Id,
+    //        InvoiceNumber = invoice.InvoiceNumber,
+    //        InvoiceDate = invoice.InvoiceDate,
+    //        DueDate = invoice.DueDate,
+    //        Status = invoice.Status,
+
+    //        Patient = new PatientDto
+    //        {
+    //            Id = invoice.Patient.Id,
+    //            FullName = invoice.Patient.FirstName + " " + invoice.Patient.LastName,
+    //            Email = invoice.Patient.Email,
+    //            Phone = invoice.Patient.PhoneNumber,
+    //            Address = string.Join(", ", new[] { invoice.Patient.Address, invoice.Patient.City }.Where(s => !string.IsNullOrWhiteSpace(s)))
+    //        },
+
+    //        Items = invoice.Items.Select(item => new InvoiceItemDto
+    //        {
+    //            Description = item.Description,
+    //            Quantity = item.Quantity,
+    //            UnitPrice = item.UnitPrice,
+    //            Discount = item.Discount,
+    //            TaxRate = item.TaxRate,
+    //            TaxAmount = item.TaxAmount,
+    //            TotalAmount = item.TotalAmount
+    //        }).ToList(),
+
+    //        SubTotal = invoice.SubTotal,
+    //        TaxAmount = invoice.TaxAmount,
+    //        TotalAmount = invoice.TotalAmount,
+
+    //        PaidAmount = invoice.PaidAmount,
+    //        BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
+    //        PaymentDate = invoice.PaymentDate,
+    //        PaymentMethod = invoice.PaymentMethod,
+    //        IsLocked = invoice.IsLocked,
+
+    //        Notes = invoice.Notes,
+    //        CreatedAt = invoice.CreatedAt,
+    //        UpdatedAt = invoice.UpdatedAt
+    //    };
+
+    //    return Ok(dto);
+    //}
+
     [HttpGet("{id}/detail")]
     public async Task<ActionResult<InvoiceDetailDto>> GetInvoiceDetail(int id)
     {
-        var invoice = await _context.Invoices
-            .Include(i => i.Patient)
-            .Include(i => i.Items)
-            .FirstOrDefaultAsync(i => i.Id == id);
+        var dto = await GetInvoiceDetailInternal(id);
 
-        if (invoice == null)
+        if (dto == null)
             return NotFound();
-
-        var dto = new InvoiceDetailDto
-        {
-            Id = invoice.Id,
-            InvoiceNumber = invoice.InvoiceNumber,
-            InvoiceDate = invoice.InvoiceDate,
-            DueDate = invoice.DueDate,
-            Status = invoice.Status,
-
-            Patient = new PatientDto
-            {
-                Id = invoice.Patient.Id,
-                FullName = invoice.Patient.FirstName + " " + invoice.Patient.LastName,
-                Email = invoice.Patient.Email,
-                Phone = invoice.Patient.PhoneNumber,
-                Address = string.Join(", ", new[] { invoice.Patient.Address, invoice.Patient.City }.Where(s => !string.IsNullOrWhiteSpace(s)))
-            },
-
-            Items = invoice.Items.Select(item => new InvoiceItemDto
-            {
-                Description = item.Description,
-                Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
-                Discount = item.Discount,
-                TaxRate = item.TaxRate,
-                TaxAmount = item.TaxAmount,
-                TotalAmount = item.TotalAmount
-            }).ToList(),
-
-            SubTotal = invoice.SubTotal,
-            TaxAmount = invoice.TaxAmount,
-            TotalAmount = invoice.TotalAmount,
-
-            PaidAmount = invoice.PaidAmount,
-            BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
-            PaymentDate = invoice.PaymentDate,
-            PaymentMethod = invoice.PaymentMethod,
-            IsLocked = invoice.IsLocked,
-
-            Notes = invoice.Notes,
-            CreatedAt = invoice.CreatedAt,
-            UpdatedAt = invoice.UpdatedAt
-        };
 
         return Ok(dto);
     }
+
 
 
     [HttpGet("{id}")]
@@ -523,4 +537,86 @@ public class InvoiceController : ControllerBase
         invoice.TaxAmount = taxAmount;
         invoice.TotalAmount = subtotal + taxAmount;
     }
+
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> GenerateInvoicePdf(int id)
+    {
+        var invoice = await GetInvoiceDetailInternal(id);
+
+        if (invoice == null)
+            return NotFound("Invoice not found");
+
+        if (invoice.Status != "Paid")
+            return BadRequest("Invoice not paid");
+
+        var document = new InvoiceDocumentStyleB(invoice);
+
+        using var stream = new MemoryStream();
+        document.GeneratePdf(stream);
+
+        return File(
+            stream.ToArray(),
+            "application/pdf",
+            $"Invoice_{invoice.InvoiceNumber}.pdf"
+        );
+    }
+
+
+    private async Task<InvoiceDetailDto?> GetInvoiceDetailInternal(int id)
+    {
+        var invoice = await _context.Invoices
+            .Include(i => i.Patient)
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (invoice == null)
+            return null;
+
+        return new InvoiceDetailDto
+        {
+            Id = invoice.Id,
+            InvoiceNumber = invoice.InvoiceNumber,
+            InvoiceDate = invoice.InvoiceDate,
+            DueDate = invoice.DueDate,
+            Status = invoice.Status,
+
+            Patient = new PatientDto
+            {
+                Id = invoice.Patient.Id,
+                FullName = invoice.Patient.FirstName + " " + invoice.Patient.LastName,
+                Email = invoice.Patient.Email,
+                Phone = invoice.Patient.PhoneNumber,
+                Address = string.Join(", ",
+                    new[] { invoice.Patient.Address, invoice.Patient.City }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)))
+            },
+
+            Items = invoice.Items.Select(item => new InvoiceItemDto
+            {
+                Description = item.Description,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                Discount = item.Discount,
+                TaxRate = item.TaxRate,
+                TaxAmount = item.TaxAmount,
+                TotalAmount = item.TotalAmount
+            }).ToList(),
+
+            SubTotal = invoice.SubTotal,
+            TaxAmount = invoice.TaxAmount,
+            TotalAmount = invoice.TotalAmount,
+
+            PaidAmount = invoice.PaidAmount,
+            BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
+            PaymentDate = invoice.PaymentDate,
+            PaymentMethod = invoice.PaymentMethod,
+            IsLocked = invoice.IsLocked,
+
+            Notes = invoice.Notes,
+            CreatedAt = invoice.CreatedAt,
+            UpdatedAt = invoice.UpdatedAt
+        };
+    }
+
+
 }
