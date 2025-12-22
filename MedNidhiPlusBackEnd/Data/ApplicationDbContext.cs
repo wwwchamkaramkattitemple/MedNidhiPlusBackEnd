@@ -29,6 +29,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<SystemSetting> SystemSettings { get; set; }
 
     public DbSet<Procedure> Procedures { get; set; }
+    public DbSet<Medicine> Medicines { get; set; }
+    public DbSet<MedicineCategory> MedicineCategories { get; set; }
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

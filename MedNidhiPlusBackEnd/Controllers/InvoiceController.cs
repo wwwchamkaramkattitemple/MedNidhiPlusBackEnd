@@ -1,9 +1,10 @@
-using MedNidhiPlusBackEnd.API.Data;
+﻿using MedNidhiPlusBackEnd.API.Data;
 using MedNidhiPlusBackEnd.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MedNidhiPlusBackEnd.API.Models;
+using MedNidhiPlusBackEnd.Models;
 
 namespace MedNidhiPlusBackEnd.API.Controllers;
 
@@ -29,34 +30,154 @@ public class InvoiceController : ControllerBase
             .ToListAsync();
     }
 
-    // GET: api/Invoice/5
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Invoice>> GetInvoice(int id)
+
+    [HttpGet("{id}/detail")]
+    public async Task<ActionResult<InvoiceDetailDto>> GetInvoiceDetail(int id)
     {
         var invoice = await _context.Invoices
             .Include(i => i.Patient)
             .Include(i => i.Items)
-            .ThenInclude(item => item.Appointment)
             .FirstOrDefaultAsync(i => i.Id == id);
 
         if (invoice == null)
-        {
             return NotFound();
-        }
 
-        return invoice;
+        var dto = new InvoiceDetailDto
+        {
+            Id = invoice.Id,
+            InvoiceNumber = invoice.InvoiceNumber,
+            InvoiceDate = invoice.InvoiceDate,
+            DueDate = invoice.DueDate,
+            Status = invoice.Status,
+
+            Patient = new PatientDto
+            {
+                Id = invoice.Patient.Id,
+                FullName = invoice.Patient.FirstName + " " + invoice.Patient.LastName,
+                Email = invoice.Patient.Email,
+                Phone = invoice.Patient.PhoneNumber,
+                Address = string.Join(", ", new[] { invoice.Patient.Address, invoice.Patient.City }.Where(s => !string.IsNullOrWhiteSpace(s)))
+            },
+
+            Items = invoice.Items.Select(item => new InvoiceItemDto
+            {
+                Description = item.Description,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                Discount = item.Discount,
+                TaxRate = item.TaxRate,
+                TaxAmount = item.TaxAmount,
+                TotalAmount = item.TotalAmount
+            }).ToList(),
+
+            SubTotal = invoice.SubTotal,
+            TaxAmount = invoice.TaxAmount,
+            TotalAmount = invoice.TotalAmount,
+
+            PaidAmount = invoice.PaidAmount,
+            BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
+            PaymentDate = invoice.PaymentDate,
+            PaymentMethod = invoice.PaymentMethod,
+            IsLocked = invoice.IsLocked,
+
+            Notes = invoice.Notes,
+            CreatedAt = invoice.CreatedAt,
+            UpdatedAt = invoice.UpdatedAt
+        };
+
+        return Ok(dto);
     }
 
-    // GET: api/Invoice/patient/5
-    [HttpGet("patient/{patientId}")]
-    public async Task<ActionResult<IEnumerable<Invoice>>> GetPatientInvoices(int patientId)
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<object>> GetInvoice(int id)
     {
-        return await _context.Invoices
-            .Where(i => i.PatientId == patientId)
+        var invoice = await _context.Invoices
             .Include(i => i.Patient)
             .Include(i => i.Items)
-            .ToListAsync();
+            .ThenInclude(i => i.Appointment)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (invoice == null) return NotFound();
+
+        return new
+        {
+            invoice.Id,
+            invoice.InvoiceNumber,
+            invoice.PatientId,
+            PatientName = invoice.Patient?.FirstName + " " + invoice.Patient?.LastName,
+            invoice.InvoiceDate,
+            invoice.DueDate,
+            invoice.Status,
+            invoice.SubTotal,
+            invoice.TaxAmount,
+            invoice.TotalAmount,
+            invoice.PaidAmount,
+            invoice.PaymentDate,
+            invoice.PaymentMethod,
+            invoice.IsLocked,
+            invoice.Notes,
+            Items = invoice.Items.Select(item => new
+            {
+                item.Id,
+                item.Description,
+                item.Quantity,
+                item.UnitPrice,
+                item.TaxRate,
+                item.Discount,
+                item.TotalAmount,
+                Appointment = item.Appointment != null ? new
+                {
+                    item.Appointment.Id,
+                    item.Appointment.AppointmentDate,
+                    item.Appointment.AppointmentTime
+                } : null
+            })
+        };
     }
+
+
+  
+
+    [HttpGet("patient/{patientId}")]
+    public async Task<ActionResult<IEnumerable<object>>> GetPatientInvoices(int patientId)
+    {
+        var invoices = await _context.Invoices
+            .Where(i => i.PatientId == patientId)
+            .Include(i => i.Items)
+            .Include(i => i.Patient)
+            .OrderByDescending(i => i.InvoiceDate)
+            .Select(i => new
+            {
+                i.Id,
+                i.InvoiceNumber,
+                InvoiceDate = i.InvoiceDate,
+                DueDate = i.DueDate,
+
+                DateString = i.InvoiceDate.ToString("dd/MM/yyyy"),
+
+                PatientId = i.PatientId,
+                PatientName = i.Patient.FirstName + " " + i.Patient.LastName,
+
+                Amount = i.TotalAmount,
+                i.PaidAmount,
+
+                Status =
+                    i.PaidAmount >= i.TotalAmount ? "Paid" :
+                    i.DueDate < DateTime.UtcNow ? "Overdue" :
+                    "Pending",
+
+                // Any appointment billed under this invoice
+                AppointmentIds = i.Items
+                    .Where(it => it.AppointmentId != null)
+                    .Select(it => it.AppointmentId)
+                    .ToList()
+            })
+            .ToListAsync();
+
+        return Ok(invoices);
+    }
+
 
     // GET: api/Invoice/status/Pending
     [HttpGet("status/{status}")]
@@ -69,100 +190,147 @@ public class InvoiceController : ControllerBase
             .ToListAsync();
     }
 
-    // POST: api/Invoice
+
     [HttpPost]
-    public async Task<ActionResult<Invoice>> CreateInvoice(Invoice invoice)
+    public async Task<ActionResult<Invoice>> CreateInvoice([FromBody] Invoice invoice)
     {
-        // Check if patient exists
-        var patient = await _context.Patients.FindAsync(invoice.PatientId);
-        if (patient == null)
+        // 1) Basic model validation
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // 2) Ensure patient exists
+        var patientExists = await _context.Patients
+            .AnyAsync(p => p.Id == invoice.PatientId);
+
+        if (!patientExists)
+            return BadRequest("Patient not found.");
+
+        // 3) Ensure there is at least one item
+        if (invoice.Items == null || !invoice.Items.Any())
+            return BadRequest("Invoice must contain at least one line item.");
+
+        // 4) Generate invoice number & timestamps
+        invoice.InvoiceNumber = GenerateInvoiceNumber();
+        invoice.CreatedAt = DateTime.UtcNow;
+        invoice.UpdatedAt = DateTime.UtcNow;
+
+        // 5) Normalize invoice items (avoid identity / navigation issues)
+        foreach (var item in invoice.Items)
         {
-            return BadRequest("Patient not found");
+            // Make sure EF treats them as NEW rows
+            item.Id = 0;             // reset identity
+            item.InvoiceId = 0;      // will be set by EF when invoice is saved
+            item.Invoice = null;     // avoid circular reference
+
+            // Optional safety defaults
+            if (item.Quantity <= 0) item.Quantity = 1;
+            if (item.Discount < 0) item.Discount = 0;
+            if (item.TaxRate < 0) item.TaxRate = 0;
         }
 
-        // Generate invoice number
-        invoice.InvoiceNumber = GenerateInvoiceNumber();
-
-        // Calculate totals
+        // 6) Calculate totals (fills SubTotal, TaxAmount, TotalAmount, item.TaxAmount, item.TotalAmount)
         CalculateInvoiceTotals(invoice);
 
+        // 7) Save invoice + its items in one go
         _context.Invoices.Add(invoice);
         await _context.SaveChangesAsync();
 
-        // If invoice has items with appointments, mark those appointments as billed
-        foreach (var item in invoice.Items.Where(i => i.AppointmentId.HasValue))
+        // 8) Mark related appointments as billed (if any items are linked to appointments)
+        var appointmentIds = invoice.Items
+            .Where(i => i.AppointmentId.HasValue)
+            .Select(i => i.AppointmentId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (appointmentIds.Any())
         {
-            var appointment = await _context.Appointments.FindAsync(item.AppointmentId.Value);
-            if (appointment != null)
+            var appointments = await _context.Appointments
+                .Where(a => appointmentIds.Contains(a.Id))
+                .ToListAsync();
+
+            foreach (var appt in appointments)
             {
-                appointment.IsBilled = true;
-                appointment.UpdatedAt = DateTime.UtcNow;
+                appt.IsBilled = true;
+                appt.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        // 9) Optionally load back with includes for response
+        var createdInvoice = await _context.Invoices
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == invoice.Id);
+
+        return CreatedAtAction(nameof(GetInvoice), new { id = invoice.Id }, createdInvoice);
+    }
+
+
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateInvoice(int id, InvoiceUpdateDto dto)
+    {
+        if (id != dto.Id)
+            return BadRequest("Invoice id mismatch");
+
+        var invoice = await _context.Invoices
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (invoice == null)
+            return NotFound();
+
+        // update parent fields
+        invoice.PatientId = dto.PatientId;
+        invoice.InvoiceDate = dto.InvoiceDate;
+        invoice.DueDate = dto.DueDate;
+        invoice.Status = dto.Status;
+        invoice.PaidAmount = dto.PaidAmount;
+        invoice.PaymentMethod = dto.PaymentMethod;
+        invoice.Notes = dto.Notes;
+        invoice.UpdatedAt = DateTime.UtcNow;
+
+        // Handle deleted items
+        var dtoIds = dto.Items.Select(x => x.Id).ToList();
+        var toRemove = invoice.Items.Where(x => !dtoIds.Contains(x.Id)).ToList();
+
+        _context.InvoiceItems.RemoveRange(toRemove);
+
+        // Handle new or updated items
+        foreach (var dtoItem in dto.Items)
+        {
+            if (dtoItem.Id == 0)
+            {
+                invoice.Items.Add(new InvoiceItem
+                {
+                    Description = dtoItem.Description,
+                    UnitPrice = dtoItem.UnitPrice,
+                    Quantity = dtoItem.Quantity,
+                    Discount = dtoItem.Discount,
+                    TaxRate = dtoItem.TaxRate,
+                    AppointmentId = dtoItem.AppointmentId
+                });
+            }
+            else
+            {
+                var existing = invoice.Items.First(x => x.Id == dtoItem.Id);
+                existing.Description = dtoItem.Description;
+                existing.UnitPrice = dtoItem.UnitPrice;
+                existing.Quantity = dtoItem.Quantity;
+                existing.Discount = dtoItem.Discount;
+                existing.TaxRate = dtoItem.TaxRate;
+                existing.AppointmentId = dtoItem.AppointmentId;
             }
         }
+
+        // recalc totals
+        CalculateInvoiceTotals(invoice);
 
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetInvoice), new { id = invoice.Id }, invoice);
-    }
-
-    // PUT: api/Invoice/5
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateInvoice(int id, Invoice invoice)
-    {
-        if (id != invoice.Id)
-        {
-            return BadRequest();
-        }
-
-        // Recalculate totals
-        CalculateInvoiceTotals(invoice);
-
-        invoice.UpdatedAt = DateTime.UtcNow;
-        _context.Entry(invoice).State = EntityState.Modified;
-
-        // Handle invoice items
-        var existingItems = await _context.InvoiceItems.Where(i => i.InvoiceId == id).ToListAsync();
-        var itemsToRemove = existingItems.Where(existingItem => 
-            !invoice.Items.Any(i => i.Id == existingItem.Id)).ToList();
-
-        foreach (var item in itemsToRemove)
-        {
-            _context.InvoiceItems.Remove(item);
-        }
-
-        foreach (var item in invoice.Items)
-        {
-            if (item.Id == 0)
-            {
-                // New item
-                item.InvoiceId = id;
-                _context.InvoiceItems.Add(item);
-            }
-            else
-            {
-                // Existing item
-                _context.Entry(item).State = EntityState.Modified;
-            }
-        }
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!InvoiceExists(id))
-            {
-                return NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
         return NoContent();
     }
+
 
     // PUT: api/Invoice/5/status
     [HttpPut("{id}/status")]
@@ -203,6 +371,9 @@ public class InvoiceController : ControllerBase
             return NotFound();
         }
 
+        if (invoice.IsLocked)
+            return BadRequest("Invoice is locked and cannot be edited.");
+
         invoice.PaidAmount += payment.Amount;
         invoice.PaymentMethod = payment.PaymentMethod;
         invoice.PaymentDate = DateTime.UtcNow;
@@ -222,6 +393,53 @@ public class InvoiceController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{invoiceId}/payment")]
+    public async Task<IActionResult> RecordPayment(int invoiceId, RecordPaymentDto dto)
+    {
+        var invoice = await _context.Invoices
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+        if (invoice == null)
+            return NotFound("Invoice not found");
+
+        if (invoice.Status == "Paid")
+            return BadRequest("Invoice already fully paid");
+
+        if (dto.Amount <= 0)
+            return BadRequest("Payment amount must be greater than zero");
+
+       
+        invoice.PaidAmount += dto.Amount;
+
+        if (invoice.PaidAmount >= invoice.TotalAmount)
+        {
+            invoice.Status = "Paid";
+            invoice.IsLocked = true;
+        }
+        else
+        {
+            invoice.Status = "Partial";
+            invoice.IsLocked = true;
+
+            invoice.PaymentDate = dto.PaymentDate;
+            invoice.PaymentMethod = dto.PaymentMethod;
+            invoice.UpdatedAt = DateTime.UtcNow;
+        }
+
+
+            await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            invoice.Id,
+            invoice.Status,
+            invoice.PaidAmount,
+            Balance = invoice.TotalAmount - invoice.PaidAmount
+        });
+    }
+
+
     // DELETE: api/Invoice/5
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
@@ -235,6 +453,9 @@ public class InvoiceController : ControllerBase
         {
             return NotFound();
         }
+
+        if (invoice.IsLocked)
+            return BadRequest("Invoice is locked and cannot be deleted.");
 
         // Remove all invoice items first
         _context.InvoiceItems.RemoveRange(invoice.Items);
@@ -302,10 +523,4 @@ public class InvoiceController : ControllerBase
         invoice.TaxAmount = taxAmount;
         invoice.TotalAmount = subtotal + taxAmount;
     }
-}
-
-public class PaymentDto
-{
-    public decimal Amount { get; set; }
-    public string PaymentMethod { get; set; } = string.Empty;
 }

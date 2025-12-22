@@ -5,10 +5,31 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Microsoft.Extensions.Hosting.WindowsServices;
+using System.Text.Json.Serialization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+//Hosting Part
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "MedNidhiApi";
+});
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddFilter("Microsoft.Extensions.Logging.EventLog", LogLevel.None);
+
+//builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
+
+
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
@@ -30,13 +51,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 
 // Configure CORS
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("AllowAngularApp", policy =>
+//        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
+//              .AllowAnyMethod()
+//              .AllowAnyHeader());
+//});
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("AllowAngularApp", policy =>
+//        policy
+//            .WithOrigins(
+//                "http://localhost:4200",
+//                "https://localhost:4200",
+//                "https://wwwchamkaramkattitemple.github.io"
+//            )
+//            .AllowAnyMethod()
+//            .AllowAnyHeader()
+//            .AllowCredentials()
+//    );
+//});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
-        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://wwwchamkaramkattitemple.github.io"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
+
+
 
 // Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -70,13 +121,16 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseSwagger();
+//    app.UseSwaggerUI();
+//}
 
-app.UseHttpsRedirection();
+app.UseSwagger();
+app.UseSwaggerUI();
+
+//app.UseHttpsRedirection();
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();

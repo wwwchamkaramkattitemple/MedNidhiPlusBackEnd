@@ -1,7 +1,8 @@
+﻿using MedNidhiPlusBackEnd.API.Models;
+using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace MedNidhiPlusBackEnd.API.Models;
 
 public class Invoice
 {
@@ -12,10 +13,10 @@ public class Invoice
     public int PatientId { get; set; }
 
     [ForeignKey("PatientId")]
-    public Patient Patient { get; set; } = null!;
+    [JsonIgnore]
+    public Patient? Patient { get; set; }
 
-    [Required]
-    public string InvoiceNumber { get; set; } = string.Empty;
+    public string? InvoiceNumber { get; set; }  // Backend will generate
 
     [Required]
     public DateTime InvoiceDate { get; set; } = DateTime.UtcNow;
@@ -24,7 +25,7 @@ public class Invoice
 
     [Required]
     [MaxLength(50)]
-    public string Status { get; set; } = "Pending"; // Pending, Paid, Overdue, Cancelled
+    public string Status { get; set; } = "Pending";
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal SubTotal { get; set; }
@@ -46,10 +47,12 @@ public class Invoice
     [MaxLength(100)]
     public string? PaymentMethod { get; set; }
 
+    public bool IsLocked { get; set; } = false;
+   
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
 
-    // Navigation property
+    [JsonIgnore]
     public ICollection<InvoiceItem> Items { get; set; } = new List<InvoiceItem>();
 }

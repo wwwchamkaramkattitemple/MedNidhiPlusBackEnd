@@ -54,6 +54,7 @@ public class AppointmentController : ControllerBase
             .Select(a => new
             {
                 a.Id,
+                a.PatientId,
                 PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
                 DoctorName = a.Doctor.DoctorName,
                 DepartmentName = a.Department != null ? a.Department.DepartmentName : null,
@@ -150,7 +151,73 @@ public class AppointmentController : ControllerBase
         return Ok(results);
     }
 
-  
+    // ✅ GET: api/Appointment/by-patient/5
+    [HttpGet("patient/{patientId}")]
+    public async Task<ActionResult<IEnumerable<object>>> GetAppointmentsByPatientId(int patientId)
+    {
+        var appointments = await _context.Appointments
+            .Include(a => a.Doctor)
+            .Include(a => a.AppointmentType)
+            .Include(a => a.Status)
+            .Where(a => a.PatientId == patientId)
+            .OrderByDescending(a => a.AppointmentDate)
+            //.Select(a => new
+            //{
+            //    a.Id,
+            //    a.PatientId,
+
+            //    AppointmentDate = a.AppointmentDate,
+            //    AppointmentTime = a.AppointmentTime.ToString(@"hh\:mm"),
+            //    DateString = a.AppointmentDate.ToString("dd/MM/yyyy"),
+
+            //    DoctorName = a.Doctor != null ? a.Doctor.DoctorName : null,
+
+            //    AppointmentTypeId = a.AppointmentTypeId,
+            //    AppointmentType = a.AppointmentType != null ? a.AppointmentType.TypeName : null,
+
+            //    Fee = a.Fee ?? 0,
+            //    TaxRate = 0,     // <—— Appointment does NOT have tax, so return 0
+
+            //    StatusId = a.StatusId,
+            //    StatusName = a.Status != null ? a.Status.StatusName : null,
+
+            //    a.IsRevisit,
+            //    a.IsBilled
+            //})
+            .Select(a => new
+            {
+                a.Id,
+                a.PatientId,
+
+                AppointmentDate = a.AppointmentDate,
+                AppointmentTime = a.AppointmentTime.ToString(@"hh\:mm"),
+                DateString = a.AppointmentDate.ToString("dd/MM/yyyy"),
+
+                DoctorName = a.Doctor != null ? a.Doctor.DoctorName : null,
+
+                AppointmentTypeId = a.AppointmentTypeId,
+                AppointmentType = a.AppointmentType != null ? a.AppointmentType.TypeName : null,
+
+                Fee = a.Fee ?? 0,
+                TaxRate = 0,
+
+                StatusId = a.StatusId,
+                StatusName = a.Status != null ? a.Status.StatusName : null,
+
+                a.IsRevisit,
+                a.IsBilled,
+
+                InvoiceId = _context.InvoiceItems
+                .Where(ii => ii.AppointmentId == a.Id)
+                .Select(ii => ii.InvoiceId)
+                .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return Ok(appointments);
+    }
+
+   
     [HttpPost]
     public async Task<ActionResult<Appointment>> CreateAppointment(Appointment appointment)
     {
@@ -199,11 +266,6 @@ public class AppointmentController : ControllerBase
 
         return CreatedAtAction(nameof(GetAppointment), new { id = appointment.Id }, appointment);
     }
-
-
-
-
-
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAppointment(int id, Appointment updated)

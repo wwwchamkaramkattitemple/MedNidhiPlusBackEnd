@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations;
 
 namespace MedNidhiPlusBackEnd.API.Models;
@@ -54,6 +55,8 @@ public class Patient
     public DateTime? UpdatedAt { get; set; }
 
     // Navigation properties
+    [JsonIgnore]
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+    [JsonIgnore]
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }
