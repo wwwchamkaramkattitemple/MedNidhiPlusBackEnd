@@ -1,4 +1,5 @@
 using MedNidhiPlusBackEnd.API.Data;
+using MedNidhiPlusBackEnd.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -120,6 +121,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+builder.Services.AddScoped<EmailService>();
 
 QuestPDF.Settings.License = LicenseType.Community;
 

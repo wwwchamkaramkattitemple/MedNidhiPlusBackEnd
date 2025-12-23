@@ -16,10 +16,12 @@ namespace MedNidhiPlusBackEnd.API.Controllers;
 public class InvoiceController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly EmailService _emailService;
 
-    public InvoiceController(ApplicationDbContext context)
+    public InvoiceController(ApplicationDbContext context, EmailService emailService)
     {
         _context = context;
+        _emailService = emailService;
     }
 
     // GET: api/Invoice
@@ -32,63 +34,6 @@ public class InvoiceController : ControllerBase
             .ToListAsync();
     }
 
-
-    //[HttpGet("{id}/detail")]
-    //public async Task<ActionResult<InvoiceDetailDto>> GetInvoiceDetail(int id)
-    //{
-    //    var invoice = await _context.Invoices
-    //        .Include(i => i.Patient)
-    //        .Include(i => i.Items)
-    //        .FirstOrDefaultAsync(i => i.Id == id);
-
-    //    if (invoice == null)
-    //        return NotFound();
-
-    //    var dto = new InvoiceDetailDto
-    //    {
-    //        Id = invoice.Id,
-    //        InvoiceNumber = invoice.InvoiceNumber,
-    //        InvoiceDate = invoice.InvoiceDate,
-    //        DueDate = invoice.DueDate,
-    //        Status = invoice.Status,
-
-    //        Patient = new PatientDto
-    //        {
-    //            Id = invoice.Patient.Id,
-    //            FullName = invoice.Patient.FirstName + " " + invoice.Patient.LastName,
-    //            Email = invoice.Patient.Email,
-    //            Phone = invoice.Patient.PhoneNumber,
-    //            Address = string.Join(", ", new[] { invoice.Patient.Address, invoice.Patient.City }.Where(s => !string.IsNullOrWhiteSpace(s)))
-    //        },
-
-    //        Items = invoice.Items.Select(item => new InvoiceItemDto
-    //        {
-    //            Description = item.Description,
-    //            Quantity = item.Quantity,
-    //            UnitPrice = item.UnitPrice,
-    //            Discount = item.Discount,
-    //            TaxRate = item.TaxRate,
-    //            TaxAmount = item.TaxAmount,
-    //            TotalAmount = item.TotalAmount
-    //        }).ToList(),
-
-    //        SubTotal = invoice.SubTotal,
-    //        TaxAmount = invoice.TaxAmount,
-    //        TotalAmount = invoice.TotalAmount,
-
-    //        PaidAmount = invoice.PaidAmount,
-    //        BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
-    //        PaymentDate = invoice.PaymentDate,
-    //        PaymentMethod = invoice.PaymentMethod,
-    //        IsLocked = invoice.IsLocked,
-
-    //        Notes = invoice.Notes,
-    //        CreatedAt = invoice.CreatedAt,
-    //        UpdatedAt = invoice.UpdatedAt
-    //    };
-
-    //    return Ok(dto);
-    //}
 
     [HttpGet("{id}/detail")]
     public async Task<ActionResult<InvoiceDetailDto>> GetInvoiceDetail(int id)
@@ -560,6 +505,33 @@ public class InvoiceController : ControllerBase
             $"Invoice_{invoice.InvoiceNumber}.pdf"
         );
     }
+
+    [HttpPost("{id}/email")]
+    public async Task<IActionResult> EmailInvoice(int id)
+    {
+        var invoice = await GetInvoiceDetailInternal(id);
+
+        if (invoice == null)
+            return NotFound();
+
+        if (invoice.Status != "Paid")
+            return BadRequest("Invoice must be paid");
+
+        var document = new InvoiceDocumentStyleB(invoice);
+        using var stream = new MemoryStream();
+        document.GeneratePdf(stream);
+
+        await _emailService.SendInvoiceAsync(
+            invoice.Patient.Email,
+            $"Invoice {invoice.InvoiceNumber}",
+            $"Dear {invoice.Patient.FullName},<br/><br/>Please find attached your invoice.",
+            stream.ToArray(),
+            $"Invoice_{invoice.InvoiceNumber}.pdf"
+        );
+
+        return Ok("Invoice emailed successfully");
+    }
+
 
 
     private async Task<InvoiceDetailDto?> GetInvoiceDetailInternal(int id)
