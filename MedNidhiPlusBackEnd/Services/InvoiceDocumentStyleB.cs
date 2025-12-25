@@ -8,10 +8,12 @@ namespace MedNidhiPlusBackEnd.Services;
 public class InvoiceDocumentStyleB : IDocument
 {
     private readonly InvoiceDetailDto _invoice;
+    private readonly SystemSetting _settings;
 
-    public InvoiceDocumentStyleB(InvoiceDetailDto invoice)
+    public InvoiceDocumentStyleB(InvoiceDetailDto invoice, SystemSetting settings)
     {
         _invoice = invoice;
+        _settings = settings;
     }
 
     public DocumentMetadata GetMetadata() =>
@@ -33,47 +35,7 @@ public class InvoiceDocumentStyleB : IDocument
     }
 
     // ================= HEADER =================
-    //void ComposeHeader(IContainer container)
-    //{
-    //    container
-    //        .Background(Colors.Blue.Darken2)
-    //        .Padding(15)
-    //        .Row(row =>
-    //        {
-    //            row.RelativeColumn().Column(col =>
-    //            {
-    //                col.Item().Text("MedNidhi Plus Clinic")
-    //                    .FontSize(22)
-    //                    .Bold()
-    //                    .FontColor(Colors.White);
-
-    //                col.Item().Text("Healthcare & Diagnostics")
-    //                    .FontColor(Colors.White);
-
-    //                col.Item().Text("Phone: +91 98765 43210 | support@mednidhi.com")
-    //                    .FontColor(Colors.White)
-    //                    .FontSize(9);
-    //            });
-
-    //            row.ConstantColumn(200).AlignRight().Column(col =>
-    //            {
-    //                col.Item().Text($"INVOICE")
-    //                    .FontSize(18)
-    //                    .Bold()
-    //                    .FontColor(Colors.White);
-
-    //                col.Item().Text($"#{_invoice.InvoiceNumber}")
-    //                    .FontColor(Colors.White);
-
-    //                col.Item().Text($"Date: {_invoice.InvoiceDate:dd/MM/yyyy}")
-    //                    .FontColor(Colors.White);
-
-    //                col.Item().Text($"Status: {_invoice.Status}")
-    //                    .FontColor(Colors.White)
-    //                    .Bold();
-    //            });
-    //        });
-    //}
+    
 
     void ComposeHeader(IContainer container)
     {
@@ -93,10 +55,10 @@ public class InvoiceDocumentStyleB : IDocument
                         .Bold()
                         .FontColor(Colors.Blue.Medium);
 
-                    c.Item().Text("Multi-Speciality Clinic");
-                    c.Item().Text("GSTIN: 29ABCDE1234F1Z5");
-                    c.Item().Text("Phone: +91 98765 43210");
-                    c.Item().Text("Address: Bengaluru, Karnataka");
+                    c.Item().Text(_settings.ClinicName);
+                    c.Item().Text("GSTIN: "+_settings.ClinicGstNumber);
+                    c.Item().Text("Phone: "+ _settings.ClinicPhone);
+                    c.Item().Text("Address: "+ _settings.ClinicAddress);
                 });
 
                 // INVOICE META
@@ -205,20 +167,6 @@ public class InvoiceDocumentStyleB : IDocument
             c.Padding(6).BorderBottom(1).BorderColor(Colors.Grey.Lighten2);
     }
 
-    // ================= TOTALS =================
-    //void ComposeTotals(IContainer container)
-    //{
-    //    container.Column(col =>
-    //    {
-    //        col.Item().Text($"Subtotal: ₹ {_invoice.SubTotal:N2}");
-    //        col.Item().Text($"Tax: ₹ {_invoice.TaxAmount:N2}");
-    //        col.Item().Text($"TOTAL: ₹ {_invoice.TotalAmount:N2}")
-    //            .FontSize(14)
-    //            .Bold()
-    //            .FontColor(Colors.Blue.Darken2);
-    //    });
-    //}
-
     void ComposeTotals(IContainer container)
     {
         var cgst = _invoice.TaxAmount / 2;
@@ -242,7 +190,7 @@ public class InvoiceDocumentStyleB : IDocument
     {
         container.AlignCenter().PaddingTop(10).Text(text =>
         {
-            text.Span("This is a computer generated invoice. No signature required.")
+            text.Span(_settings.PdfFooterMessage)
                 .FontSize(9)
                 .Italic();
         });

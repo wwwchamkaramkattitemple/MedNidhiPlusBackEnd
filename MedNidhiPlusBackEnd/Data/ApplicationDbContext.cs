@@ -100,6 +100,10 @@ public class ApplicationDbContext : DbContext
             .WithMany(i => i.Items)
             .HasForeignKey(ii => ii.InvoiceId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SystemSetting>()
+        .HasIndex(x => x.Id)
+        .IsUnique();
     }
 
 }

@@ -1,6 +1,5 @@
 ﻿using MedNidhiPlusBackEnd.API.Data;
 using MedNidhiPlusBackEnd.API.Models;
-using MedNidhiPlusBackEnd.API.Models;
 using MedNidhiPlusBackEnd.Models;
 using MedNidhiPlusBackEnd.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -483,18 +482,50 @@ public class InvoiceController : ControllerBase
         invoice.TotalAmount = subtotal + taxAmount;
     }
 
+    //[HttpGet("{id}/pdf")]
+    //public async Task<IActionResult> GenerateInvoicePdf(int id)
+    //{
+    //    var invoice = await GetInvoiceDetailInternal(id);
+
+    //    if (invoice == null)
+    //        return NotFound("Invoice not found");
+
+    //    if (invoice.Status != "Paid")
+    //        return BadRequest("Invoice not paid");
+
+    //    var document = new InvoiceDocumentStyleB(invoice);
+
+    //    using var stream = new MemoryStream();
+    //    document.GeneratePdf(stream);
+
+    //    return File(
+    //        stream.ToArray(),
+    //        "application/pdf",
+    //        $"Invoice_{invoice.InvoiceNumber}.pdf"
+    //    );
+    //}
+
     [HttpGet("{id}/pdf")]
-    public async Task<IActionResult> GenerateInvoicePdf(int id)
+    public async Task<IActionResult> GenerateInvoicePdf(
+    int id,
+    [FromQuery] string? mode,
+    [FromQuery] string? design)
     {
         var invoice = await GetInvoiceDetailInternal(id);
-
         if (invoice == null)
             return NotFound("Invoice not found");
 
         if (invoice.Status != "Paid")
             return BadRequest("Invoice not paid");
 
-        var document = new InvoiceDocumentStyleB(invoice);
+        var settings = await GetSystemSettingsAsync();
+
+        var finalMode = mode ?? settings.DefaultInvoicePrintMode;
+        var finalDesign = finalMode == "Thermal"
+            ? null
+            : (design ?? settings.DefaultInvoiceDesign);
+
+        var document = InvoicePdfFactory.Create(invoice, settings,finalMode,finalDesign);
 
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
@@ -505,6 +536,7 @@ public class InvoiceController : ControllerBase
             $"Invoice_{invoice.InvoiceNumber}.pdf"
         );
     }
+
 
     [HttpPost("{id}/email")]
     public async Task<IActionResult> EmailInvoice(int id)
@@ -517,7 +549,13 @@ public class InvoiceController : ControllerBase
         if (invoice.Status != "Paid")
             return BadRequest("Invoice must be paid");
 
-        var document = new InvoiceDocumentStyleB(invoice);
+        var settings = await GetSystemSettingsAsync();
+
+        var finalMode =  settings.DefaultInvoicePrintMode;
+        var finalDesign = finalMode == "Thermal" ? null : ( settings.DefaultInvoiceDesign);
+
+        var document = InvoicePdfFactory.Create(invoice, settings, finalMode, finalDesign);
+
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
 
@@ -589,6 +627,12 @@ public class InvoiceController : ControllerBase
             UpdatedAt = invoice.UpdatedAt
         };
     }
+
+    private async Task<SystemSetting> GetSystemSettingsAsync()
+    {
+        return await _context.SystemSettings.FirstAsync();
+    }
+
 
 
 }
