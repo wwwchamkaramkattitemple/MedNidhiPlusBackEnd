@@ -5,7 +5,7 @@ namespace MedNidhiPlusBackEnd.Services;
 
 public static class InvoicePdfFactory
 {
-    public static IDocument Create( InvoiceDetailDto invoice, SystemSetting settings, string mode,string? design)
+    public static IDocument Create(InvoiceDetailDto invoice, SystemSetting settings, string mode,string? design)
     {
         return mode switch
         {

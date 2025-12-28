@@ -10,6 +10,7 @@ public class SystemSetting
     public string ClinicPhone { get; set; } = "";
     public string ClinicEmail { get; set; } = "";
     public string ClinicGstNumber { get; set; } = "";
+    public string SpecialityName { get; set; } = "Dental & Dermatology";
 
     // ───────── Billing Defaults ─────────
     public decimal DefaultFee { get; set; } = 200;
@@ -21,6 +22,9 @@ public class SystemSetting
     // Normal | Thermal
 
     public string DefaultInvoiceDesign { get; set; } = "Classic";
+    // Classic | Modern | Minimal
+
+    public string DefaultReportDesign { get; set; } = "Classic";
     // Classic | Modern | Minimal
 
     // ───────── PDF Messages ─────────

@@ -137,7 +137,7 @@ public class ThermalInvoiceDocument : IDocument
         container.AlignCenter().Column(col =>
         {
             col.Item().Text("PAID").Bold();
-            col.Item().PaddingTop(2).Text("Thank you!");
+            col.Item().PaddingTop(2).Text(_settings.PdfThankYouMessage);
         });
     }
 

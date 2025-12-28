@@ -95,7 +95,7 @@ public class InvoiceController : ControllerBase
     }
 
 
-  
+
 
     [HttpGet("patient/{patientId}")]
     public async Task<ActionResult<IEnumerable<object>>> GetPatientInvoices(int patientId)
@@ -367,7 +367,7 @@ public class InvoiceController : ControllerBase
         if (dto.Amount <= 0)
             return BadRequest("Payment amount must be greater than zero");
 
-       
+
         invoice.PaidAmount += dto.Amount;
 
         if (invoice.PaidAmount >= invoice.TotalAmount)
@@ -378,15 +378,14 @@ public class InvoiceController : ControllerBase
         else
         {
             invoice.Status = "Partial";
-            invoice.IsLocked = true;
-
-            invoice.PaymentDate = dto.PaymentDate;
-            invoice.PaymentMethod = dto.PaymentMethod;
-            invoice.UpdatedAt = DateTime.UtcNow;
+            invoice.IsLocked = false;
         }
 
+        invoice.PaymentDate = dto.PaymentDate;
+        invoice.PaymentMethod = dto.PaymentMethod;
+        invoice.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         return Ok(new
         {
@@ -417,10 +416,10 @@ public class InvoiceController : ControllerBase
 
         // Remove all invoice items first
         _context.InvoiceItems.RemoveRange(invoice.Items);
-        
+
         // Then remove the invoice
         _context.Invoices.Remove(invoice);
-        
+
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -435,7 +434,7 @@ public class InvoiceController : ControllerBase
     {
         // Format: INV-YYYYMMDD-XXXX where XXXX is a sequential number
         string datePrefix = DateTime.UtcNow.ToString("yyyyMMdd");
-        
+
         // Get the last invoice number with this date prefix
         var lastInvoice = _context.Invoices
             .Where(i => i.InvoiceNumber.StartsWith($"INV-{datePrefix}"))
@@ -465,7 +464,7 @@ public class InvoiceController : ControllerBase
         {
             // Calculate item total
             item.TotalAmount = (item.UnitPrice * item.Quantity) - item.Discount;
-            
+
             // Calculate tax if applicable
             if (item.TaxRate > 0)
             {
@@ -525,7 +524,7 @@ public class InvoiceController : ControllerBase
             ? null
             : (design ?? settings.DefaultInvoiceDesign);
 
-        var document = InvoicePdfFactory.Create(invoice, settings,finalMode,finalDesign);
+        var document = InvoicePdfFactory.Create(invoice, settings, finalMode, finalDesign);
 
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
@@ -551,8 +550,8 @@ public class InvoiceController : ControllerBase
 
         var settings = await GetSystemSettingsAsync();
 
-        var finalMode =  settings.DefaultInvoicePrintMode;
-        var finalDesign = finalMode == "Thermal" ? null : ( settings.DefaultInvoiceDesign);
+        var finalMode = settings.DefaultInvoicePrintMode;
+        var finalDesign = finalMode == "Thermal" ? null : (settings.DefaultInvoiceDesign);
 
         var document = InvoicePdfFactory.Create(invoice, settings, finalMode, finalDesign);
 
